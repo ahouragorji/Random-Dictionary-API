@@ -20,7 +20,8 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build the Docker image
-        run: docker build -t your_dockerhub_username/your_image_name:latest .
+        run: docker build -t ahooragorji/cloudproject:latest .
 
       - name: Push the Docker image to Docker Hub
-        run: docker push your_dockerhub_username/your_image_name:latest
+        run: docker push ahooragorji/cloudproject:latest
+

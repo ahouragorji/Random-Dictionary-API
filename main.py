@@ -1,8 +1,11 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from randomWord import getRandomWord, getMeaning
 import json
 import redis
 import os
+from prometheus_client import Counter, Histogram, generate_latest
+from starlette.responses import Response
+from starlette.middleware.base import BaseHTTPMiddleware
 
 # Get Redis connection details and cache TTL from environment variables
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
@@ -11,6 +14,11 @@ REDIS_DB = int(os.getenv("REDIS_DB", 0))
 CACHE_TTL = int(os.getenv("CACHE_TTL", 3600))
 
 client = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, db=REDIS_DB)
+
+# Prometheus metrics
+REQUEST_COUNT = Counter("http_requests_total", "Total HTTP requests", ["method", "endpoint", "status_code"])
+REQUEST_LATENCY = Histogram("http_request_latency_seconds", "HTTP request latency", ["method", "endpoint"])
+REQUEST_FAILURES = Counter("http_request_failures_total", "Failed HTTP requests", ["method", "endpoint"])
 
 def set_cache(key, value, ttl=CACHE_TTL):
     """Set a JSON-serializable cache entry with a TTL."""
@@ -22,6 +30,30 @@ def get_cache(key):
     return json.loads(cached_value) if cached_value else None
 
 app = FastAPI()
+
+# Middleware for metrics collection
+class PrometheusMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        method = request.method
+        endpoint = request.url.path
+
+        with REQUEST_LATENCY.labels(method=method, endpoint=endpoint).time():
+            try:
+                response = await call_next(request)
+                REQUEST_COUNT.labels(method=method, endpoint=endpoint, status_code=response.status_code).inc()
+                if response.status_code >= 400:
+                    REQUEST_FAILURES.labels(method=method, endpoint=endpoint).inc()
+                return response
+            except Exception as e:
+                REQUEST_FAILURES.labels(method=method, endpoint=endpoint).inc()
+                raise e
+
+app.add_middleware(PrometheusMiddleware)
+
+@app.get('/metrics')
+def metrics():
+    return Response(content=generate_latest(), media_type="text/plain")
+    #return {"hi":"boo"}
 
 @app.get('/random')
 def random():

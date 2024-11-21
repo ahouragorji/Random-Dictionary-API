@@ -1,5 +1,13 @@
+<<<<<<< HEAD
 fastapi
 uvicorn
 redis
 requests
 prometheus_client
+=======
+fastapi
+uvicorn
+redis
+requests
+prometheus_client
+>>>>>>> 43de40ba995a0e8521e6e8e249ccd4e7e76fccb5

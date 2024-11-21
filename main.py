@@ -1,3 +1,4 @@
+
 from fastapi import FastAPI, HTTPException, Request
 from randomWord import getRandomWord, getMeaning
 import json
@@ -88,3 +89,4 @@ def dictionary(word: str):
     else:
         meaning['source'] = 'redis'
     return meaning
+
